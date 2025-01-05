@@ -6,13 +6,38 @@ import {
   editContact,
   removeContact,
 } from '../services/contacts.js';
+import { Contact } from '../db/models/contact.js';
 
 export const getContacts = async (req, res) => {
-  const contacts = await getAllContacts();
+  const {
+    page = 1,
+    perPage = 10,
+    sortBy = 'name',
+    sortOrder = 'asc',
+    isFavourite,
+  } = req.query;
+  const query = isFavourite ? { isFavourite: isFavourite === 'true' } : {};
+  const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+  const skip = (page - 1) * perPage;
+  const totalItems = await Contact.countDocuments(query);
+  const contacts = await Contact.find(query)
+    .sort(sort)
+    .skip(skip)
+    .limit(Number(perPage));
+
   res.json({
     status: 200,
     message: 'Contacts retrieved successfully',
-    data: contacts,
+    data: {
+      data: contacts,
+      page: Number(page),
+      perPage: Number(perPage),
+      totalItems,
+      totalPages: Math.ceil(totalItems / perPage),
+      hasPreviousPage: page > 1,
+      hasNextPage: page < Math.ceil(totalItems / perPage),
+    },
   });
 };
 
